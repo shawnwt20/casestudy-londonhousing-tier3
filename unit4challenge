@@ -1,0 +1,103 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+#loading in data
+url_LondonHousePrices = "https://data.london.gov.uk/download/uk-house-price-index/70ac0766-8902-4eb5-aab5-01951aaed773/UK%20House%20price%20index.xls"
+properties = pd.read_excel(url_LondonHousePrices, sheet_name='Average price', index_col= None)
+properties.shape
+properties.head()
+properties_t = properties.transpose()
+properties_t.head()
+properties_t.index
+properties_t = properties_t.reset_index()
+properties_t.index
+properties_t.head()
+properties_t.columns
+properties_t.iloc[[0]]
+properties_t.columns = properties_t.iloc[0]
+properties_t.head()
+properties_t = properties_t.drop(0)
+properties_t.head()
+
+#cleaning up the data
+properties_t = properties_t.rename(columns = {'Unnamed: 0':'Borough_Name', pd.NaT: 'CSS_Code'})
+properties_t.head()
+properties_t.columns
+
+#transforming the data
+melted_properties = pd.melt(properties_t, id_vars= ['Borough_Name', 'CSS_Code'])
+melted_properties.head()
+melted_properties = melted_properties.rename(columns = {0: 'Month', 'value': 'Average_Price'})
+melted_properties.head()
+melted_properties.dtypes
+melted_properties['Average_Price'] = pd.to_numeric(melted_properties['Average_Price'])
+melted_properties.dtypes
+melted_properties.count()
+
+melted_properties['Borough_Name'].unique()
+melted_properties[melted_properties['Borough_Name'] == 'Unnamed: 47'].head()
+melted_properties[melted_properties['Borough_Name'] == 'Unnamed: 34'].head()
+melted_properties[melted_properties['Borough_Name'] == 'Unnamed: 37'].head()
+melted_properties = melted_properties[melted_properties.CSS_Code != "NaN"]
+melted_properties.head(40)
+melted_properties[melted_properties['CSS_Code'].isna()]
+nonull1 = melted_properties[melted_properties['Average_Price'].notna()]
+nonull1.head(48)
+nonull1.count()
+nonull2 = melted_properties.dropna()
+nonull2.head(48)
+nonull2.count()
+nonull2['Borough_Name'].unique()
+print(melted_properties.shape)
+print(nonull1.shape)
+print(nonull2.shape)
+nonBoroughs = ['Inner London', 'Outer London', 
+               'NORTH EAST', 'NORTH WEST', 'YORKS & THE HUMBER', 
+               'EAST MIDLANDS', 'WEST MIDLANDS',
+              'EAST OF ENGLAND', 'LONDON', 'SOUTH EAST', 
+              'SOUTH WEST', 'England']
+nonull2[nonull2.Borough_Name.isin(nonBoroughs)]
+nonull2[~nonull2.Borough_Name.isin(nonBoroughs)]
+nonull2 = nonull2[~nonull2.Borough_Name.isin(nonBoroughs)]
+nonull2.head()
+
+#final dataframe
+df = nonull2
+df.head()
+df.dtypes
+
+#visualizing the data
+price_barnet = df[df['Borough_Name'] == 'Barnet']
+lp = price_barnet.plot(kind ='line', x = 'Month', y='Average_Price')
+lp.set_ylabel('Price')
+df['Year'] = df['Month'].apply(lambda t: t.year)
+df.tail()
+dfg = df.groupby(by=['Borough_Name', 'Month']).mean()
+dfg.sample(10)
+dfg = dfg.reindex()
+dfg.head()
+
+def create_price_ratio(d):
+    y1998 = float(d['Average_Price'][d['Year']==1998])
+    y2018 = float(d['Average_Price'][d['Year']==2018])
+    ratio = [y2018/y1998]
+    return ratio
+create_price_ratio(dfg[dfg['Borough_Name'] == 'Barnet'])
+final = {}
+for b in dfg['Borough_Name'].unique():
+    borough = dfg[dfg['London_Borough'] == b]
+    final[b] = create_price_ratio(borough)
+print(final)
+df_ratios = pd.DataFrame(final)
+df_ratios.head()
+df_ratios_T = df_ratios.T
+df_ratios = df_ratios_T.reset_index()
+df_ratios.head()
+df_ratios.rename(columns={'index':'Borough', 0:'2018'}, inplace=True)
+df_ratios.head()
+top15 = df_ratios.sort_values(by='2018',ascending=False).head(15)
+print(top15)
+ax = top15[['Borough','2018']].plot(kind='bar')
+
+ax.set_xticklabels(top15.Borough)
